@@ -10,4 +10,4 @@ This repository contains code accompanying the paper [**ClimaX: A foundation mod
 For details about usage please see [documentation](https://microsoft.github.io/ClimaX).
 If you have any questions or suggestions please open a [discussion](https://github.com/microsoft/ClimaX/discussions). If you notice a bug, please open an [issue](https://github.com/microsoft/ClimaX/issues).
 
-This is a disscussion branch for an internship in Sugon.
+中科曙光 ClimaX文档
