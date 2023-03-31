@@ -1,6 +1,6 @@
 site_name: ClimaX
-repo_name: microsoft/ClimaX
-repo_url: https://github.com/microsoft/ClimaX
+repo_name: Jay-Humor/ClimaX
+repo_url: https://github.com/Jay-Humor/ClimaX
 
 markdown_extensions:
   - attr_list
