@@ -48,12 +48,12 @@ extra_css:
   - stylesheets/extra.css
 
 nav:
-  - Home: "docs/index.md"
-  - Installation: "docs/install.md"
-  - Usage: "docs/usage.md"
+  - Home: "index.md"
+  - Installation: "install.md"
+  - Usage: "usage.md"
   - Code Reference:
-    - Pretraining: "docs/reference/pretrain.md"
-    - Global Forecasting: "docs/reference/global_forecast.md"
+    - Pretraining: "reference/pretrain.md"
+    - Global Forecasting: "reference/global_forecast.md"
 
 
 plugins:
