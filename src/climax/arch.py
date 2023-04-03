@@ -156,7 +156,7 @@ class ClimaX(nn.Module):
 
     def unpatchify(self, x: torch.Tensor, h=None, w=None):
         """
-        x: (B, L, V * patch_size**2)
+        x: (B, L, V * patch_size**2) 待解压的天气/气候变量
         return imgs: (B, V, H, W)
         """
         p = self.patch_size  # 块大小
@@ -172,7 +172,7 @@ class ClimaX(nn.Module):
 
     def aggregate_variables(self, x: torch.Tensor):
         """
-        x: B, V, L, D
+        x: B, V, L, D 输入的天气/气候变量
         """
         b, _, l, _ = x.shape  # 获取批量大小、变量数量、序列长度和嵌入维度
         x = torch.einsum("bvld->blvd", x)  # 交换一些维度
