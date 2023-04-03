@@ -51,9 +51,12 @@ nav:
   - Home: "index.md"
   - Installation: "install.md"
   - Usage: "usage.md"
+  - Architecture: "architecture.md"
+  - Structure: "structure.md"
   - Code Reference:
     - Pretraining: "reference/pretrain.md"
     - Global Forecasting: "reference/global_forecast.md"
+  - Discussion: "discussion.md"
 
 
 plugins:
