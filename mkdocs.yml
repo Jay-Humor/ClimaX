@@ -51,6 +51,7 @@ nav:
   - Home: "index.md"
   - Installation: "install.md"
   - Usage: "usage.md"
+  - Architecture: "preprocess.md"
   - Architecture: "architecture.md"
   - Structure: "structure.md"
   - Code Reference:
