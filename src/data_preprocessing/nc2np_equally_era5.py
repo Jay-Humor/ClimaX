@@ -14,6 +14,16 @@ from climax.utils.data_utils import DEFAULT_PRESSURE_LEVELS, NAME_TO_VAR #导入
 HOURS_PER_YEAR = 8760 # 365天*24小时
 
 def nc2np(path, variables, years, save_dir, partition, num_shards_per_year):
+    '''
+    将ERA5资料转换为numpy数组, 并将其存储为.npy文件。
+    Args:
+        path (string): 资料所在路径
+        variables (list): 变量名列表
+        years (list): 年份列表
+        save_dir (string): 存储路径
+        partition (string): "train" 或 "test", 数据集类型
+        num_shards_per_year (int): 每年的分片数
+    '''
     # 创建目录
     os.makedirs(os.path.join(save_dir, partition), exist_ok=True)
 
@@ -175,6 +185,18 @@ def main(
     end_year,
     num_shards,
 ):
+    '''
+    预处理主函数
+    Args:
+        root_dir (string): 数据根目录
+        save_dir (string): 数据处理后的保存目录
+        variables (string): 变量名
+        start_train_year (int): 训练数据起始年份
+        start_val_year (int): 验证数据起始年份
+        start_test_year (int): 测试数据起始年份
+        end_year (int): 数据截止年份
+        num_shards (int): 数据切片数
+    '''
     assert start_val_year > start_train_year and start_test_year > start_val_year and end_year > start_test_year
     train_years = range(start_train_year, start_val_year) # 训练年份列表
     val_years = range(start_val_year, start_test_year) # 验证年份列表
