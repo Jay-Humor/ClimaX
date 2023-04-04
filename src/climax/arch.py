@@ -194,11 +194,11 @@ class ClimaX(nn.Module):
         return x
 
     def forward_encoder(self, x, lead_times, variables):
-        """Forward pass through the model.
+        """从模型输入变量聚合到应用Transformer层
 
         Args:
-            x (torch.Tensor): [B, Vi, H, W] 输入的天气/气候变量
-            y (torch.Tensor): [B, Vo, H, W] 目标天气/气候变量
+            x (torch.Tensor): (B, Vi, H, W) 输入的天气/气候变量
+            y (torch.Tensor): (B, Vo, H, W) 目标天气/气候变量
             lead_times (torch.Tensor): [B] 每个批次元素的预报时段
             variables (list): 字符串列表，表示输入的天气/气候变量
 
@@ -244,8 +244,8 @@ class ClimaX(nn.Module):
         """Forward pass through the model.
 
         Args:
-            x (torch.Tensor): [B, Vi, H, W] 输入的天气/气候变量
-            y (torch.Tensor): [B, Vo, H, W] 目标天气/气候变量
+            x (torch.Tensor): (B, Vi, H, W) 输入的天气/气候变量
+            y (torch.Tensor): (B, Vo, H, W) 目标天气/气候变量
             lead_times (torch.Tensor): [B] 每个批次元素的预报时段
             variables (list): 字符串列表，表示输入的天气/气候变量
             out_variables (list): 字符串列表，表示输出的天气/气候变量
@@ -254,7 +254,7 @@ class ClimaX(nn.Module):
 
         Returns:
             loss (list): 不同度量的损失值列表
-            preds (torch.Tensor): [B, Vo, H, W] 预测的天气/气候变量
+            preds (torch.Tensor): (B, Vo, H, W) 预测的天气/气候变量
         """
         out_transformers = self.forward_encoder(x, lead_times, variables)  # 使用forward_encoder函数进行前向传递，输出为B, L, D
         preds = self.head(out_transformers)  # 将out_transformers输入至self.head中，得到B, L, V*p*p的输出
@@ -275,9 +275,9 @@ class ClimaX(nn.Module):
         模型推理和评估
 
         Args:
-            x (torch.Tensor): [B, Vi, H, W] 输入的天气/气候变量
-            y (torch.Tensor): [B, Vo, H, W] 目标天气/气候变量
-            lead_times (torch.Tensor): [B] 每个批次元素的预报时段
+            x (torch.Tensor): (B, Vi, H, W) 输入的天气/气候变量
+            y (torch.Tensor): (B, Vo, H, W) 目标天气/气候变量
+            lead_times (torch.Tensor): (B) 每个批次元素的预报时段
             variables (list): 字符串列表，表示输入的天气/气候变量
             out_variables (list): 字符串列表，表示输出的天气/气候变量
             transform (function): 输出变量的转换函数
