@@ -154,12 +154,14 @@ class ClimaX(nn.Module):
         ids = self.get_var_ids(vars, var_emb.device)  # 获取变量在默认变量列表中的索引
         return var_emb[:, ids, :]  # 返回变量嵌入的子集
 
-    def unpatchify(self, x: torch.Tensor, h=None, w=None):
+    def unpatchify(self, x, h=None, w=None):
         """
         Args:
-            x: (B, L, V * patch_size**2) 待解压的天气/气候变量
+            x (torch.Tensor): (B, L, V * patch_size**2) 待解压的天气/气候变量
+            h (int): 图像高度
+            w (int): 图像宽度
         Returns:
-            imgs: (B, V, H, W)
+            imgs (torch.Tensor): (B, V, H, W)
         """
         p = self.patch_size  # 块大小
         c = len(self.default_vars)  # 变量数量
@@ -172,11 +174,13 @@ class ClimaX(nn.Module):
         imgs = x.reshape(shape=(x.shape[0], c, h * p, w * p))  # 将块拼接成完整图像
         return imgs
 
-    def aggregate_variables(self, x: torch.Tensor):
+    def aggregate_variables(self, x):
         """
         聚合输入变量
         Args:
-            x: B, V, L, D 输入的天气/气候变量
+            x (torch.Tensor): (B, V, L, D) 输入的天气/气候变量
+        Returns:
+            x (torch.Tensor): (B, V, H, W)
         """
         b, _, l, _ = x.shape  # 获取批量大小、变量数量、序列长度和嵌入维度
         x = torch.einsum("bvld->blvd", x)  # 交换一些维度
@@ -189,17 +193,17 @@ class ClimaX(nn.Module):
         x = x.unflatten(dim=0, sizes=(b, l))  # 将前面拆开的维度重新分离，形状为（B，L，D）
         return x
 
-    def forward_encoder(self, x: torch.Tensor, lead_times: torch.Tensor, variables):
+    def forward_encoder(self, x, lead_times, variables):
         """Forward pass through the model.
 
         Args:
-            x: [B, Vi, H, W] 输入的天气/气候变量
-            y: [B, Vo, H, W] 目标天气/气候变量
-            lead_times: [B] 每个批次元素的预报时段
-            variables: 字符串列表，表示输入的天气/气候变量
+            x (torch.Tensor): [B, Vi, H, W] 输入的天气/气候变量
+            y (torch.Tensor): [B, Vo, H, W] 目标天气/气候变量
+            lead_times (torch.Tensor): [B] 每个批次元素的预报时段
+            variables (list): 字符串列表，表示输入的天气/气候变量
 
         Returns:
-            x: [B, L, D] 输出的编码张量, 其中L是序列长度, D是嵌入维度
+            x (torch.Tensor): [B, L, D] 输出的编码张量, 其中L是序列长度, D是嵌入维度
         """
 
         if isinstance(variables, list):
@@ -240,13 +244,13 @@ class ClimaX(nn.Module):
         """Forward pass through the model.
 
         Args:
-            x: [B, Vi, H, W] 输入的天气/气候变量
-            y: [B, Vo, H, W] 目标天气/气候变量
-            lead_times: [B] 每个批次元素的预报时段
-            variables: 字符串列表，表示输入的天气/气候变量
-            out_variables: 字符串列表，表示输入的天气/气候变量
-            metric: 用于计算度量的函数列表
-            lat: 纬度
+            x (torch.Tensor): [B, Vi, H, W] 输入的天气/气候变量
+            y (torch.Tensor): [B, Vo, H, W] 目标天气/气候变量
+            lead_times (torch.Tensor): [B] 每个批次元素的预报时段
+            variables (list): 字符串列表，表示输入的天气/气候变量
+            out_variables (list): 字符串列表，表示输出的天气/气候变量
+            metric (list): 损失函数列表
+            lat (int): H
 
         Returns:
             loss (list): 不同度量的损失值列表
@@ -268,19 +272,19 @@ class ClimaX(nn.Module):
 
     def evaluate(self, x, y, lead_times, variables, out_variables, transform, metrics, lat, clim, log_postfix):
         """
-        对模型进行评估
+        模型推理和评估
 
         Args:
-            x: [B, Vi, H, W] 输入的天气/气候变量
-            y: [B, Vo, H, W] 目标天气/气候变量
-            lead_times: [B] 每个批次元素的预报时段
-            variables: 字符串列表，表示输入的天气/气候变量
-            out_variables: 字符串列表，表示输入的天气/气候变量
-            transform: 输出变量的转换
-            metrics: 输出变量的转换
-            lat: 纬度
-            clim: 气候
-            log_postfix: 日志后缀
+            x (torch.Tensor): [B, Vi, H, W] 输入的天气/气候变量
+            y (torch.Tensor): [B, Vo, H, W] 目标天气/气候变量
+            lead_times (torch.Tensor): [B] 每个批次元素的预报时段
+            variables (list): 字符串列表，表示输入的天气/气候变量
+            out_variables (list): 字符串列表，表示输出的天气/气候变量
+            transform (function): 输出变量的转换函数
+            metric (list): 损失函数列表
+            lat (int): H
+            clim (torch.Tensor): 气候
+            log_postfix (string): 日志后缀
 
         Returns:
             results (list): 评估结果
