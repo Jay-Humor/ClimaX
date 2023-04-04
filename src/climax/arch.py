@@ -199,11 +199,11 @@ class ClimaX(nn.Module):
         Args:
             x (torch.Tensor): (B, Vi, H, W) 输入的天气/气候变量
             y (torch.Tensor): (B, Vo, H, W) 目标天气/气候变量
-            lead_times (torch.Tensor): [B] 每个批次元素的预报时段
+            lead_times (torch.Tensor): (B) 每个批次元素的预报时段
             variables (list): 字符串列表，表示输入的天气/气候变量
 
         Returns:
-            x (torch.Tensor): [B, L, D] 输出的编码张量, 其中L是序列长度, D是嵌入维度
+            x (torch.Tensor): (B, L, D) 输出的编码张量, 其中L是序列长度, D是嵌入维度
         """
 
         if isinstance(variables, list):
@@ -246,7 +246,7 @@ class ClimaX(nn.Module):
         Args:
             x (torch.Tensor): (B, Vi, H, W) 输入的天气/气候变量
             y (torch.Tensor): (B, Vo, H, W) 目标天气/气候变量
-            lead_times (torch.Tensor): [B] 每个批次元素的预报时段
+            lead_times (torch.Tensor): (B) 每个批次元素的预报时段
             variables (list): 字符串列表，表示输入的天气/气候变量
             out_variables (list): 字符串列表，表示输出的天气/气候变量
             metric (list): 损失函数列表
