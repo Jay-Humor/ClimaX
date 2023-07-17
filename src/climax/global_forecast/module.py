@@ -1,26 +1,27 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT license.
 
-# credits: https://github.com/ashleve/lightning-hydra-template/blob/main/src/models/mnist_module.py
+
 from typing import Any
 
 import torch
-from pytorch_lightning import LightningModule
+import torch.nn as nn
 from torchvision.transforms import transforms
+import logging
 
-from climax.arch import ClimaX
-from climax.utils.lr_scheduler import LinearWarmupCosineAnnealingLR
-from climax.utils.metrics import (
+from arch import ClimaX
+from utils.lr_scheduler import LinearWarmupCosineAnnealingLR
+from utils.metrics import (
     lat_weighted_acc,
     lat_weighted_mse,
     lat_weighted_mse_val,
     lat_weighted_rmse,
 )
-from climax.utils.pos_embed import interpolate_pos_embed
+from utils.pos_embed import interpolate_pos_embed
 
 
-class GlobalForecastModule(LightningModule):
-    """Lightning module for global forecasting with the ClimaX model.
+class GlobalForecastModule(nn.Module):
+    """PyTorch module for global forecasting with the ClimaX model.
 
     Args:
         net (ClimaX): ClimaX model.
@@ -37,7 +38,7 @@ class GlobalForecastModule(LightningModule):
 
     def __init__(
         self,
-        net: ClimaX,
+        default_vars: list,
         pretrained_path: str = "",
         lr: float = 5e-4,
         beta_1: float = 0.9,
@@ -49,8 +50,15 @@ class GlobalForecastModule(LightningModule):
         eta_min: float = 1e-8,
     ):
         super().__init__()
-        self.save_hyperparameters(logger=False, ignore=["net"])
-        self.net = net
+        self.net=ClimaX(default_vars)
+        self.lr=lr
+        self.beta_1=beta_1
+        self.beta_2=beta_2
+        self.weight_decay=weight_decay
+        self.warmup_epochs=warmup_epochs
+        self.max_epochs=max_epochs
+        self.warmup_start_lr=warmup_start_lr
+        self.eta_min=eta_min
         if len(pretrained_path) > 0:
             self.load_pretrained_weights(pretrained_path)
 
@@ -65,7 +73,12 @@ class GlobalForecastModule(LightningModule):
         interpolate_pos_embed(self.net, checkpoint_model, new_size=self.net.img_size)
 
         state_dict = self.state_dict()
-        # checkpoint_keys = list(checkpoint_model.keys())
+        # logging.info(checkpoint_model.keys())
+        # if self.net.parallel_patch_embed:
+        #     if "net.token_embeds.proj_weights" not in checkpoint_model.keys():
+        #         raise ValueError(
+        #             "Pretrained checkpoint does not have token_embeds.proj_weights for parallel processing. Please convert the checkpoints first or disable parallel patch_embed tokenization."
+        #         )
         for k in list(checkpoint_model.keys()):
             if "channel" in k:
                 checkpoint_model[k.replace("channel", "var")] = checkpoint_model[k]
@@ -95,24 +108,16 @@ class GlobalForecastModule(LightningModule):
     def set_test_clim(self, clim):
         self.test_clim = clim
 
-    def training_step(self, batch: Any, batch_idx: int):
+    def training_step(self, batch: Any):
         x, y, lead_times, variables, out_variables = batch
 
         loss_dict, _ = self.net.forward(x, y, lead_times, variables, out_variables, [lat_weighted_mse], lat=self.lat)
-        loss_dict = loss_dict[0]
-        for var in loss_dict.keys():
-            self.log(
-                "train/" + var,
-                loss_dict[var],
-                on_step=True,
-                on_epoch=False,
-                prog_bar=True,
-            )
+        loss_dict = loss_dict[0] # type: ignore
         loss = loss_dict["loss"]
 
         return loss
 
-    def validation_step(self, batch: Any, batch_idx: int):
+    def validation_step(self, batch: Any):
         x, y, lead_times, variables, out_variables = batch
 
         if self.pred_range < 24:
@@ -121,36 +126,31 @@ class GlobalForecastModule(LightningModule):
             days = int(self.pred_range / 24)
             log_postfix = f"{days}_days"
 
-        all_loss_dicts = self.net.evaluate(
+        loss, preds = self.net.forward(
             x,
             y,
             lead_times,
             variables,
             out_variables,
-            transform=self.denormalization,
-            metrics=[lat_weighted_mse_val, lat_weighted_rmse, lat_weighted_acc],
+            metric=None,
             lat=self.lat,
-            clim=self.val_clim,
-            log_postfix=log_postfix,
         )
 
+        transform=self.denormalization
+        clim=self.val_clim
+        log_postfix=log_postfix
+        metrics=[lat_weighted_mse_val, lat_weighted_rmse, lat_weighted_acc]
+        all_loss_dicts = [m(preds, y, transform, out_variables, self.lat, clim, log_postfix) for m in metrics]
+
         loss_dict = {}
+
         for d in all_loss_dicts:
             for k in d.keys():
                 loss_dict[k] = d[k]
 
-        for var in loss_dict.keys():
-            self.log(
-                "val/" + var,
-                loss_dict[var],
-                on_step=False,
-                on_epoch=True,
-                prog_bar=False,
-                sync_dist=True,
-            )
         return loss_dict
 
-    def test_step(self, batch: Any, batch_idx: int):
+    def test_step(self, batch: Any):
         x, y, lead_times, variables, out_variables = batch
 
         if self.pred_range < 24:
@@ -158,35 +158,30 @@ class GlobalForecastModule(LightningModule):
         else:
             days = int(self.pred_range / 24)
             log_postfix = f"{days}_days"
-
-        all_loss_dicts = self.net.evaluate(
+        
+        loss, preds = self.net.forward(
             x,
             y,
             lead_times,
             variables,
             out_variables,
-            transform=self.denormalization,
-            metrics=[lat_weighted_mse_val, lat_weighted_rmse, lat_weighted_acc],
+            metric=None,
             lat=self.lat,
-            clim=self.test_clim,
-            log_postfix=log_postfix,
         )
 
+        transform=self.denormalization
+        clim=self.val_clim
+        log_postfix=log_postfix
+        metrics=[lat_weighted_mse_val, lat_weighted_rmse, lat_weighted_acc]
+        all_loss_dicts = [m(preds, y, transform, out_variables, self.lat, clim, log_postfix) for m in metrics]
+
         loss_dict = {}
+
         for d in all_loss_dicts:
             for k in d.keys():
                 loss_dict[k] = d[k]
 
-        for var in loss_dict.keys():
-            self.log(
-                "test/" + var,
-                loss_dict[var],
-                on_step=False,
-                on_epoch=True,
-                prog_bar=False,
-                sync_dist=True,
-            )
-        return loss_dict
+        return preds , loss_dict
 
     def configure_optimizers(self):
         decay = []
@@ -201,14 +196,14 @@ class GlobalForecastModule(LightningModule):
             [
                 {
                     "params": decay,
-                    "lr": self.hparams.lr,
-                    "betas": (self.hparams.beta_1, self.hparams.beta_2),
-                    "weight_decay": self.hparams.weight_decay,
+                    "lr": self.lr,
+                    "betas": (self.beta_1, self.beta_2),
+                    "weight_decay": self.weight_decay,
                 },
                 {
                     "params": no_decay,
-                    "lr": self.hparams.lr,
-                    "betas": (self.hparams.beta_1, self.hparams.beta_2),
+                    "lr": self.lr,
+                    "betas": (self.beta_1, self.beta_2),
                     "weight_decay": 0,
                 },
             ]
@@ -216,11 +211,10 @@ class GlobalForecastModule(LightningModule):
 
         lr_scheduler = LinearWarmupCosineAnnealingLR(
             optimizer,
-            self.hparams.warmup_epochs,
-            self.hparams.max_epochs,
-            self.hparams.warmup_start_lr,
-            self.hparams.eta_min,
+            self.warmup_epochs,
+            self.max_epochs,
+            self.warmup_start_lr,
+            self.eta_min,
         )
-        scheduler = {"scheduler": lr_scheduler, "interval": "step", "frequency": 1}
 
-        return {"optimizer": optimizer, "lr_scheduler": scheduler}
+        return optimizer, lr_scheduler
