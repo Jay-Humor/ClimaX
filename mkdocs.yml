@@ -53,6 +53,7 @@ nav:
   - Usage: "usage.md"
   - Preprocess: "preprocess.md"
   - Architecture: "architecture.md"
+  - Evaluate: "evaluate.md"
   - Structure: "structure.md"
   - Code Reference:
     - Pretraining: "reference/pretrain.md"
